@@ -42,9 +42,13 @@ def courageCoinAlg():
     after = before - int(fearLvl_editor.get())
     print(after)
 
+    c.execute('select courageCoins from User')
+    courageCoins = c.fetchall()
+    courageCoins = courageCoins[0][0]
+
     c.execute('Update User set courageCoins = :after where oid = 1',
     {
-     'after' : after  
+     'after' : after + courageCoins  
     })
 
     conn.commit()
