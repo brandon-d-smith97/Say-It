@@ -1,9 +1,6 @@
 #####
-# SayIt version 0.8 Objectives: 
-## Create a list box for steps of the ladder, Generalize for others on Linux
-# SayIt version 0.9 Objective: Create User Functionality (courageXP) 
+# SayIt version 0.9.1 Objective: Create User Functionality (courageXP) 
 #####
-
 
 import sqlite3
 from tkinter import *
@@ -13,7 +10,6 @@ from tkinter import *
 conn = sqlite3.connect('/home/brandon/Dev/SayIt/Ladder.db')
 c = conn.cursor()
 
-# Creates Table if one does't already exist
 try:
     c.execute("""CREATE TABLE Steps (     
     title text,
@@ -22,13 +18,41 @@ try:
 except sqlite3.OperationalError as err:
     pass
 
+try:
+    c.execute("""CREATE TABLE User (     
+    name text,
+    courageCoins integer
+    )""")    
+except sqlite3.OperationalError as err:
+    pass
 
-
-
+#    #    # General Gui Information #    #    #
 root = Tk()
 root.geometry("500x500")
 root.configure(background = 'light blue')
 root.title("Social Anxiety Exposure Therapy")
+
+def courageCoinAlg():
+    conn = sqlite3.connect('/home/brandon/Dev/SayIt/Ladder.db')
+    c = conn.cursor()
+
+    c.execute('Select * from steps where oid = ' + select_box.get())
+    before = c.fetchall()
+    before = int(before[0][1])
+    after = before - int(fearLvl_editor.get())
+    print(after)
+
+    c.execute('Update User set courageCoins = :after where oid = 1',
+    {
+     'after' : after  
+    })
+
+    conn.commit()
+    conn.close()
+
+    print('done')
+
+
 
 def Update():
     # Create a database and make cursor
@@ -36,17 +60,18 @@ def Update():
 	c = conn.cursor()
 
 	record_id = select_box.get()
-
+    
+    
 	c.execute("""UPDATE Steps SET
 		title = :title,
 		fearLvl = :fearLvl
-
 		WHERE oid = :oid""",
 		{
 		'title': title_editor.get(),
 		'fearLvl': fearLvl_editor.get(),
 		'oid': record_id
 		})
+    
 
 
 	# Commit Changes and Close
@@ -78,7 +103,6 @@ def initsubmit():
     title.delete(0, END)
     fearLvl.delete(0, END)
 
-#Create a Show Ladder Button
 def query():
     conn = sqlite3.connect('/home/brandon/Dev/SayIt/Ladder.db')
     c = conn.cursor()
@@ -93,8 +117,15 @@ def query():
         print_steps += "Title: "+  str(step[0]) + "     Fear Level: " + str(step[1]) +"     ID NUMBER: " + str(step[2]) + "\n"
 
     # To be replaced by listbox
-    query_label = Label(root, text=print_steps) 
-    query_label.grid(row=6, column=0, columnspan=2)
+    #query_label = Label(root, text=print_steps) 
+    #query_label.grid(row=6, column=0, columnspan=2)
+
+    showLadder = Listbox(root, width=60)
+    showLadder.grid(row=6, column=0,columnspan=3)
+    showLadder.insert(0, "Goal  :  Level of Aversion")    
+
+    for step in ladder:
+        showLadder.insert(1,step[0] + "  :  " + str(step[1]))
 
     conn.commit()
     conn.close()
@@ -111,7 +142,6 @@ def delete():
 
     conn.commit()
     conn.close()
-
 
 def edit():
     root.withdraw() # take away main window
@@ -148,9 +178,63 @@ def edit():
 
     edit_btn = Button(editor, text="Save Record", command=Update)
     edit_btn.grid(row=6, column=0, columnspan=2, pady=10, padx=10, ipadx=145)
+    log_btn = Button(editor, text="Log Progress", command=courageCoinAlg)
+    log_btn.grid(row=7, column=0, columnspan=2, pady=10, padx=10, ipadx=145)
 
-#    #    # General GUI Information #    #    #
+def saveName():
 
+    conn = sqlite3.connect('/home/brandon/Dev/SayIt/Ladder.db')
+    c = conn.cursor()
+    
+    c.execute(""" INSERT INTO User Values (:name, :cc)
+    """,
+    {
+        'name' : name.get(),
+        'cc' : 0
+    }
+    )
+    name.delete(0, END)
+
+    conn.commit()
+    conn.close()
+
+def createProfile():
+    global createName
+    createName = Tk()
+    createName.configure(background = 'light green') 
+    createName.geometry("400x350") 
+    createName.title("Say It/profile")
+    global name
+    name_label = Label(createName, text="Name:").grid(row=0,column=0)
+    name = Entry(createName, width=30)
+    name.grid(row=0,column=1, padx=20)
+    submit = Button(createName, text="Change name",command=saveName).grid(row=4,column=0,columnspan=2, pady=10, padx=10, ipadx=100)
+
+def goToProfile():
+    conn = sqlite3.connect('/home/brandon/Dev/SayIt/Ladder.db')
+    c = conn.cursor()
+    
+    global profileHome
+    profileHome = Tk()
+    profileHome.configure(background = 'light green') 
+    profileHome.geometry("400x350") 
+    profileHome.title("Say It/profile")
+
+    createProfile_button = Button(profileHome, text="Edit Profile Name", command=createProfile, bg="Pink").grid(row=3,column=0, columnspan=2)
+
+    c.execute("SELECT * FROM User")
+    ladder = c.fetchall()
+    name = ladder[0][0]
+    ccAmt = ladder[0][1]
+    
+    name_label = Label(profileHome, text="Name:").grid(row=0,column=0)
+    courageCoin_label = Label(profileHome, text="Number of Courage Coins:")
+    courageCoin_label.grid(row=1,column=0)
+    actualNameLabel = Label(profileHome,text=name).grid(row=0, column=1)
+    actualCCLabel = Label(profileHome, text=ccAmt).grid(row=1,column=1)
+
+
+#    #    # Specific GUI Widgets #    #    #
 # Creates Entry Boxes for title, number fear level, select box
 title = Entry(root, width=30)
 title.grid(row=0,column=1, padx=20)
@@ -176,6 +260,9 @@ del_btn = Button(root, text="Delete Step",command=delete)
 del_btn.grid(row=10,column=0,columnspan=2, pady=10, padx=10,ipadx=100)
 edit_btn = Button(root, text="Edit Step",command=edit)
 edit_btn.grid(row=11,column=0,columnspan=2, pady=10, padx=10,ipadx=125)
+goProfile_button = Button(root, text="View Profile", command=goToProfile, bg="orange")
+goProfile_button.grid(row=12,column=0, columnspan=2)
+
 
 conn.commit()
 conn.close()
